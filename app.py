@@ -1,30 +1,41 @@
 import streamlit as st
+import yfinance as yf
+import pandas as pd
 
-st.set_page_config(page_title="BMI 健康計算機", page_icon="⚖️")
+st.set_page_config(page_title="台積電股價分析", page_icon="📈")
 
-st.title("⚖️ BMI 健康計算機")
-st.write("輸入你的身高與體重，看看你的健康狀況！")
+st.title("📈 台積電 (2330.TW) 股價查詢系統")
 
-# 建立側邊欄輸入
+# 設定股票代號
+ticker = "2330.TW"
+
+# 側邊欄設定時間範圍
 with st.sidebar:
-    st.header("個人參數")
-    weight = st.number_input("體重 (公斤)", min_value=1.0, max_value=200.0, value=65.0)
-    height = st.number_input("身高 (公分)", min_value=50.0, max_value=250.0, value=170.0)
+    st.header("查詢設定")
+    period = st.selectbox("選擇時間範圍", ["1mo", "3mo", "6mo", "1y", "2y", "5y"], index=3)
 
-# 計算 BMI
-if st.button("開始計算"):
-    bmi = weight / ((height / 100) ** 2)
-    st.subheader(f"你的 BMI 指數為: {bmi:.2f}")
+# 抓取數據
+data = yf.Ticker(ticker)
+df = data.history(period=period)
 
-    # 判斷等級
-    if bmi < 18.5:
-        st.warning("體重過輕：建議多補充營養，並進行適度重訓。")
-    elif 18.5 <= bmi < 24:
-        st.success("正常範圍：太棒了！請繼續保持均衡飲食與運動。")
-    elif 24 <= bmi < 27:
-        st.info("過重：要注意飲食內容，減少加工食品攝取喔。")
-    else:
-        st.error("肥胖：建議諮詢專業營養師或醫師協助調整生活習慣。")
+if not df.empty:
+    # 顯示最新收盤價
+    latest_price = df['Close'].iloc[-1]
+    prev_price = df['Close'].iloc[-2]
+    diff = latest_price - prev_price
+    
+    col1, col2 = st.columns(2)
+    col1.metric("今日收盤價", f"{latest_price:.2f} TWD", f"{diff:.2f}")
+    col2.metric("查詢區間", period)
 
-st.divider()
-st.caption("本工具僅供參考，詳細健康資訊請洽詢專業人士。")
+    # 繪製折線圖
+    st.subheader(f"歷史趨勢圖 ({period})")
+    st.line_chart(df['Close'])
+
+    # 顯示原始數據表格
+    if st.checkbox("顯示數據明細"):
+        st.write(df.tail(10))
+else:
+    st.error("無法取得數據，請稍後再試。")
+
+st.caption("數據來源：Yahoo Finance")
